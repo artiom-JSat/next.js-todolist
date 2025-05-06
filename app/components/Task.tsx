@@ -1,11 +1,11 @@
 'use client'
 
-import { FormEventHandler, useState } from 'react'
+import { FormEvent, useState } from 'react'
 import { FiEdit, FiTrash2 } from 'react-icons/fi'
 import { useRouter } from 'next/navigation'
 import { ITask } from '@/types/tasks'
 import Modal from './Modal'
-import { deleteTodo, editTodo } from '../api/api'
+import { deleteTodo, editTodo, completeTodo } from '../api/api'
 
 interface TaskProps {
   task: ITask
@@ -13,17 +13,30 @@ interface TaskProps {
 
 const Task: React.FC<TaskProps> = ({ task }) => {
   const router = useRouter()
-  const [openModalEdit, setOpenModalEdit] = useState<boolean>(false)
-  const [openModalDeleted, setOpenModalDeleted] = useState<boolean>(false)
-  const [taskToEdit, setTaskToEdit] = useState<string>(task.text)
+  const [openModalEdit, setOpenModalEdit] = useState(false)
+  const [openModalDeleted, setOpenModalDeleted] = useState(false)
+  const [taskToEdit, setTaskToEdit] = useState(task.text)
+  const [taskToComplete, setTaskToComplete] = useState(task.isComplete)
 
-  const handleSubmitEditTodo: FormEventHandler<HTMLFormElement> = async (e) => {
+  const handleSubmitEditTodo = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     await editTodo({
       id: task.id,
       text: taskToEdit,
+      isComplete: taskToComplete,
     })
     setOpenModalEdit(false)
+    router.refresh()
+  }
+
+  const handleToggleComplete = async () => {
+    const newCompleteStatus = !taskToComplete
+    await completeTodo({
+      id: task.id,
+      text: task.text,
+      isComplete: newCompleteStatus,
+    })
+    setTaskToComplete(newCompleteStatus)
     router.refresh()
   }
 
@@ -34,8 +47,18 @@ const Task: React.FC<TaskProps> = ({ task }) => {
   }
 
   return (
-    <tr key={task.id}>
-      <td className="w-full">{task.text}</td>
+    <tr>
+      <td className="w-full">
+        <div className="flex items-center gap-4">
+          <input
+            type="checkbox"
+            checked={taskToComplete}
+            onChange={handleToggleComplete}
+            className="checkbox checkbox-sm checkbox-success"
+          />
+          <div className={taskToComplete ? "line-through" : ''}>{task.text}</div>
+        </div>
+      </td>
       <td className="flex gap-5">
         <FiEdit
           onClick={() => setOpenModalEdit(true)}
@@ -67,10 +90,11 @@ const Task: React.FC<TaskProps> = ({ task }) => {
           size={18}
         />
         <Modal modalOpen={openModalDeleted} setModalOpen={setOpenModalDeleted}>
-          <h3 className="font-bold text-lg">
-            Are you sure, you want to delete this task?
-          </h3>
+          <h3 className="font-bold text-lg">Delete task</h3>
           <div className="modal-action">
+            <div className="w-full">
+              Are you sure, you want to delete this task?
+            </div>
             <button onClick={() => handleDeleteTask(task.id)} className="btn">
               Yes
             </button>
